@@ -1,27 +1,29 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'firebase_options.dart';
 import 'package:flutter/material.dart';
+import 'firebase_options.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print("Handling a background message: ${message.messageId}");
+  debugPrint("Handling a background message: ${message.messageId}");
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  runApp(MyApp());
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
   @override
-  _MyAppState createState() => _MyAppState();
+  MyAppState createState() => MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class MyAppState extends State<MyApp> {
   String? _token;
 
   @override
@@ -30,10 +32,9 @@ class _MyAppState extends State<MyApp> {
     _initializeFCM();
   }
 
-  void _initializeFCM() async {
+  Future<void> _initializeFCM() async {
     FirebaseMessaging messaging = FirebaseMessaging.instance;
 
-    // Request permission for notifications
     NotificationSettings settings = await messaging.requestPermission(
       alert: true,
       badge: true,
@@ -41,23 +42,39 @@ class _MyAppState extends State<MyApp> {
     );
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      print("User granted permission");
+      debugPrint("User granted permission");
     } else {
-      print("User declined or has not accepted permission");
+      debugPrint("User declined or has not accepted permission");
     }
 
-    // Get the FCM token
-    _token = await messaging.getToken();
-    print("FCM Token: $_token");
-
-    // Handle foreground messages
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print("Foreground message received: ${message.notification?.title}");
+    messaging.getToken().then((token) {
+      if (token != null) {
+        setState(() {
+          _token = token;
+        });
+        debugPrint("FCM Token: $_token");
+      }
     });
 
-    // Handle background messages when the app is opened from a notification
+    messaging.onTokenRefresh.listen((newToken) {
+      setState(() {
+        _token = newToken;
+      });
+      debugPrint("FCM Token Refreshed: $_token");
+    });
+
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      if (message.notification != null) {
+        debugPrint(
+          "Foreground message received: ${message.notification!.title}",
+        );
+      }
+    });
+
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print("Message clicked: ${message.notification?.title}");
+      if (message.notification != null) {
+        debugPrint("Message clicked: ${message.notification!.title}");
+      }
     });
   }
 
@@ -65,9 +82,12 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(title: Text("FCM Demo")),
+        appBar: AppBar(title: const Text("FCM Demo")),
         body: Center(
-          child: Text(_token != null ? "FCM Token: $_token" : "Fetching token..."),
+          child: SelectableText(
+            _token != null ? "FCM Token: $_token" : "Fetching token...",
+            textAlign: TextAlign.center,
+          ),
         ),
       ),
     );
