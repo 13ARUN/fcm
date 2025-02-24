@@ -4,14 +4,14 @@ import 'package:flutter/material.dart';
 import 'firebase_options.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  debugPrint("Handling a background message: ${message.messageId}");
+  debugPrint("Handling a background message: ${message.notification!.title}");
+  debugPrint("Handling a background message data: ${message.data}");
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(const MyApp());
 }
@@ -68,6 +68,9 @@ class MyAppState extends State<MyApp> {
         debugPrint(
           "Foreground message received: ${message.notification!.title}",
         );
+        debugPrint(
+          "Foreground message data received: ${message.data}",
+        );
       }
     });
 
@@ -76,6 +79,14 @@ class MyAppState extends State<MyApp> {
         debugPrint("Message clicked: ${message.notification!.title}");
       }
     });
+
+    RemoteMessage? initialMessage =
+        await FirebaseMessaging.instance.getInitialMessage();
+    if (initialMessage != null) {
+      debugPrint(
+        "App opened from terminated state: ${initialMessage.notification?.title}",
+      );
+    }
   }
 
   @override
